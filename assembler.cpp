@@ -2,6 +2,8 @@
 using namespace std;
 typedef long long int ll;
 
+
+// Class to store instruction details
 class instruction
 {
     public:
@@ -15,6 +17,7 @@ map<ll, bitset<8>> memory;
 
 ll start_address = 0x10000000;
 
+// Function to write memory contents to output.mc
 void writeMemoryToFile() {
     ofstream outFile("output.mc", ios::app); // Open in append mode
     if (!outFile) {
@@ -29,6 +32,8 @@ void writeMemoryToFile() {
     
     outFile.close();
 }
+
+// Function to write data to a file
 void writetofile(string filename,string data)
 {
     ofstream file;
@@ -36,6 +41,8 @@ void writetofile(string filename,string data)
     file<<data;
     file.close();
 }
+
+// Function to parse immediate values (hex/binary → decimal)
 string parseImm(string imm){
     // if imm is hex or binary then convert it to decimal
     // dont use stoi as it is not able to convert hex to decimal
@@ -72,6 +79,7 @@ string parseImm(string imm){
 map<string, long long> labelMap; // Stores label names with their PC values
 map<long long, string> instructionMap; // Stores PC values with instructions
 
+// Function to check if a statement is a label
 bool checkLabel(string stmt) {
     int i = stmt.size() - 1;
     while (i >= 0 && stmt[i] != ':') {
@@ -80,6 +88,7 @@ bool checkLabel(string stmt) {
     return (i >= 0); // If ':' is found, it's a valid label
 }
 
+// Function to extract label name and store it with its PC value
 void makeLabel(string stmt, long long pc) {
     int i = 0;
     string lname = "";
@@ -105,7 +114,7 @@ void makeLabel(string stmt, long long pc) {
 }
 
 
-
+// Function to process the data segment of the input file
 void processDataSegment() {
     ifstream fin("input.asm");  // Always reads from "input.asm"
     if (!fin) {  
@@ -115,12 +124,12 @@ void processDataSegment() {
 
     string stmt;
 
-    // *Step 1: Find .data section*
+    // Find .data section
     while (getline(fin, stmt)) {
         if (stmt == ".data") break;
     }
 
-    // *Step 2: Read .data section*
+    // Read .data section
     while (getline(fin, stmt)) {
         if (stmt.empty()) continue;  // Ignore empty lines
         if (stmt == ".text") break;  // Stop at .text section
@@ -129,14 +138,14 @@ void processDataSegment() {
         int i = 0;
         string label = "";
         
-        // *Extract label name*
+        // Extract label name
         while (stmt[i] != ':') {
             label += stmt[i];
             i++;
         }
         i++;  // Move past :
 
-        // *Extract directive type*
+        // Extract directive type
         string directive = "";
         while (stmt[i] == ' ') i++;  // Skip spaces
         while (stmt[i] != ' ') {
@@ -148,7 +157,7 @@ void processDataSegment() {
         vector<int> values;
         string temp = "";
 
-        // *Handle .asciiz (String)*
+        // Handle .asciiz (String)
         if (directive == ".asciiz") {
             i++;  // Skip first quote
             while (i < stmt.size() && stmt[i] != '"') {
@@ -157,7 +166,7 @@ void processDataSegment() {
             }
             values.push_back(0);  // Null terminator
         } 
-        // *Handle Numerical Directives*
+        // Handle Numerical Directives
         else {
             while (i < stmt.size()) {
                 if (stmt[i] == ' ' || i == stmt.size() - 1) {
@@ -171,7 +180,7 @@ void processDataSegment() {
             }
         }
 
-        // *Step 3: Store values in memory*
+        // Store values in memory
         for (int val : values) {
             ll temp = val;
             int size = 0;
@@ -193,6 +202,7 @@ void processDataSegment() {
     fin.close();
 }
 
+// Utility function for debugging
 void printMemory() {
     cout << "Memory Dump (Address → Value):\n";
     for (auto &entry : memory) {
@@ -200,7 +210,7 @@ void printMemory() {
     }
 }
 
-
+// Map to store instruction details
 map<string,instruction> instruction_map = {
     {"add", {"add", "0110011", "R", "000", "0000000"}},
     {"and", {"and", "0110011", "R", "111", "0000000"}},
@@ -235,6 +245,7 @@ map<string,instruction> instruction_map = {
     {"jal", {"jal", "1101111", "UJ", "000", "0000000"}}
 };
 
+// Map to store register names with their binary values
 map<string,string> register_map = {
     {"x0", "00000"},
     {"x1", "00001"},
@@ -271,7 +282,7 @@ map<string,string> register_map = {
 };
 
 
-
+// R format instruction
 void rformat(ll pc,string instr)
 {
     string original_instr = instr;
@@ -298,12 +309,19 @@ void rformat(ll pc,string instr)
     stringstream ss;
     ss << hex << uppercase << setw(8) << setfill('0') << b.to_ulong();
 
+    // change PC to bitset then change it to hex format string and ignore the leading zeroes after 0x
+    bitset<32> b1(pc);
+    stringstream ss1;
+    ss1 << hex << b1.to_ulong();
+
+    
     // above two printed lines should also be sent to output.mc file as it is
-    writetofile("output.mc","0x" + to_string(pc) + " 0x" + ss.str() + " , " + original_instr + " # " + instruction_map[name].opcode + "-" + instruction_map[name].func3 + "-" + instruction_map[name].func7 + "-" + register_map[rd] + "-" + register_map[rs1] + "-" + register_map[rs2] + "-NULL\n");
+    writetofile("output.mc","0x" + ss1.str() + " 0x" + ss.str() + " , " + original_instr + " # " + instruction_map[name].opcode + "-" + instruction_map[name].func3 + "-" + instruction_map[name].func7 + "-" + register_map[rd] + "-" + register_map[rs1] + "-" + register_map[rs2] + "-NULL\n");
     
 
 }
 
+// S format instruction
 void sformat(ll pc, string instr)
 {
     string original_instr = instr;
@@ -346,9 +364,15 @@ void sformat(ll pc, string instr)
     bitset<32> b(machine_code);
     stringstream ss;
     ss << hex << uppercase << setw(8) << setfill('0') << b.to_ulong();
-    writetofile("output.mc","0x" + to_string(pc) + " 0x" + ss.str() + " , " + original_instr + " # " + instruction_map[name].opcode + "-" + instruction_map[name].func3 + "-NULL-NULL-" + register_map[rs1] + "-" + register_map[rs2] + "-" + imm_bin.to_string().substr(0, 7) + imm_bin.to_string().substr(7, 5) + "\n");
+
+    bitset<32> b1(pc);
+    stringstream ss1;
+    ss1 << hex << b1.to_ulong();
+
+    writetofile("output.mc","0x" + ss1.str() + " 0x" + ss.str() + " , " + original_instr + " # " + instruction_map[name].opcode + "-" + instruction_map[name].func3 + "-NULL-NULL-" + register_map[rs1] + "-" + register_map[rs2] + "-" + imm_bin.to_string().substr(0, 7) + imm_bin.to_string().substr(7, 5) + "\n");
 }
 
+// I format instruction
 void iformat(ll pc, string instr)
 {
     string original_instr = instr;
@@ -405,10 +429,16 @@ void iformat(ll pc, string instr)
     stringstream ss;
     ss << hex << uppercase << setw(8) << setfill('0') << b.to_ulong();
 
+
+    bitset<32> b1(pc);
+    stringstream ss1;
+    ss1 << hex << b1.to_ulong();
+
     // send to output.mc
-    writetofile("output.mc","0x" + to_string(pc) + " 0x" + ss.str() + " , " + original_instr + " # " + instruction_map[name].opcode + "-" + instruction_map[name].func3 + "-NULL-" + register_map[rd] + "-" + register_map[rs1] + "-NULL-" + immBin.to_string() + "\n");
+    writetofile("output.mc","0x" + ss1.str() + " 0x" + ss.str() + " , " + original_instr + " # " + instruction_map[name].opcode + "-" + instruction_map[name].func3 + "-NULL-" + register_map[rd] + "-" + register_map[rs1] + "-NULL-" + immBin.to_string() + "\n");
 }
 
+// SB format instruction
 void sbformat(ll pc,string instr)
 {
     string original_instr = instr;
@@ -480,9 +510,16 @@ void sbformat(ll pc,string instr)
     stringstream ss;
     ss << hex << uppercase << setw(8) << setfill('0') << b.to_ulong();
     // above two printed lines should also be sent to output.mc file as it is
-    writetofile("output.mc","0x" + to_string(pc) + " 0x" + ss.str() + " , " + original_instr + " # " + instruction_map[name].opcode + "-" + instruction_map[name].func3 + "-NULL-NULL-" + register_map[rs1] + "-" + register_map[rs2] + "-" + imm[0] + imm.substr(2, 6) + imm.substr(8, 4) + imm[1] + "\n");
+
+
+    bitset<32> b1(pc);
+    stringstream ss1;
+    ss1 << hex << b1.to_ulong();
+
+    writetofile("output.mc","0x" + ss1.str() + " 0x" + ss.str() + " , " + original_instr + " # " + instruction_map[name].opcode + "-" + instruction_map[name].func3 + "-NULL-NULL-" + register_map[rs1] + "-" + register_map[rs2] + "-" + imm[0] + imm.substr(2, 6) + imm.substr(8, 4) + imm[1] + "\n");
 }
 
+// U format instruction
 void uformat(ll pc,string instr)
 {
     string original_instr = instr;
@@ -517,10 +554,15 @@ void uformat(ll pc,string instr)
     stringstream ss;
     ss << hex << uppercase << setw(8) << setfill('0') << b.to_ulong();
 
+    bitset<32> b1(pc);
+    stringstream ss1;
+    ss1 << hex << b1.to_ulong();
+
     // above two printed lines should also be sent to output.mc file as it is
-    writetofile("output.mc","0x" + to_string(pc) + " 0x" + ss.str() + " , " + original_instr + " # " + instruction_map[name].opcode + "-NULL-NULL-" + register_map[rd] + "-NULL-NULL-" + imm + "\n");
+    writetofile("output.mc","0x" + ss1.str()+ " 0x" + ss.str() + " , " + original_instr + " # " + instruction_map[name].opcode + "-NULL-NULL-" + register_map[rd] + "-NULL-NULL-" + imm + "\n");
 }
 
+// UJ format instruction
 void ujformat(ll pc,string instr)
 {
     string original_instr = instr;
@@ -580,7 +622,11 @@ void ujformat(ll pc,string instr)
     stringstream ss;
     ss << hex << uppercase << setw(8) << setfill('0') << b.to_ulong();
 
-    writetofile("output.mc","0x" + to_string(pc) + " 0x" + ss.str() + " , " + original_instr + " # " + instruction_map[name].opcode + "-NULL-NULL-" + register_map[rd] + "-NULL-NULL-" + imm[0] + imm.substr(10, 10) + imm[9] + imm.substr(1, 8) + "\n");
+    bitset<32> b1(pc);
+    stringstream ss1;
+    ss1 << hex << b1.to_ulong();
+
+    writetofile("output.mc","0x" + ss1.str() + " 0x" + ss.str() + " , " + original_instr + " # " + instruction_map[name].opcode + "-NULL-NULL-" + register_map[rd] + "-NULL-NULL-" + imm[0] + imm.substr(10, 10) + imm[9] + imm.substr(1, 8) + "\n");
     
 }
 
@@ -621,6 +667,8 @@ void processInstructions() {
         }
     }
 }
+
+// Function to parse the .text segment of the input file
 void parseTextSegment() {
     ifstream file("input.asm"); // Always use input.asm
     if (!file) {
@@ -704,7 +752,7 @@ void parseTextSegment() {
         if (checkLabel(stmt)) {
             // makeLabel(stmt, pc);
             continue;
-            // pc += 4; // Increment PC by 4 for each label
+            // pc += 4; // Dont Increment PC by 4 for each label
         } else {
             // Otherwise, store the instruction
             instructionMap[pc] = stmt;
@@ -715,6 +763,7 @@ void parseTextSegment() {
     file1.close();
 }
 
+// Utility function for debugging
 void displayParsedData() {
     cout << "Label Map:\n";
     for (const auto &entry : labelMap) {
@@ -733,32 +782,18 @@ int main()
     parseTextSegment();
     // displayParsedData();
     processInstructions();
+    writetofile("output.mc","##Text Segment Ends##\n");
+    writetofile("output.mc","\n");
+
+    // processDataSegment();
+    writetofile("output.mc","##Data Segment Starts##\n");
 
 
     processDataSegment();
     writeMemoryToFile();
     // printMemory();
     
-    // iformat(0,"addi x1, x0, 16");
-    // iformat(0,"addi x1, x0, 0x10");
-    // iformat(0,"addi x1, x0, 0b10000");
-
-    // sformat(0,"sb x1, 16(x2)");
-    // sformat(0,"sb x1, 0x10(x2)");
-    // sformat(0,"sb x1, 0b10000(x2)");
-
-    // sbformat(0,"beq x1, x2, 16");
-    // sbformat(0,"beq x1, x2, 0x10");
-    // sbformat(0,"beq x1, x2, 0b10000");
-
-    // uformat(0,"lui x1, 16");
-    // uformat(0,"lui x1, 0x10");
-    // uformat(0,"lui x1, 0b10000");
-
-    // ujformat(0,"jal x1, 16");
-    // ujformat(0,"jal x1, 0x10");
-    // ujformat(0,"jal x1, 0b10000");
-    displayParsedData();
+    
 
     return 0;
 }
